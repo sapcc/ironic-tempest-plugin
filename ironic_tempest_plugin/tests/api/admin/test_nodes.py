@@ -170,6 +170,16 @@ class TestNodes(base.BaseBaremetalTest):
         _, loaded_node = self.client.show_node(self.node['uuid'])
         self.assertNotIn('fault', loaded_node)
 
+    @decorators.idempotent_id('e5470656-bb65-4173-be83-2df3fc9aed24')
+    def test_conductor_hidden(self):
+        _, loaded_node = self.client.show_node(self.node['uuid'])
+        self.assertNotIn('conductor', loaded_node)
+
+    @decorators.idempotent_id('5e7f4c54-8216-42d3-83cc-7bd776ffd16f')
+    def test_description_hidden(self):
+        _, loaded_node = self.client.show_node(self.node['uuid'])
+        self.assertNotIn('description', loaded_node)
+
 
 class TestNodesResourceClass(base.BaseBaremetalTest):
 
@@ -850,3 +860,155 @@ class TestNodeFault(base.BaseBaremetalTest):
         self.assertRaises(
             lib_exc.BadRequest,
             self.client.list_nodes, fault='somefake')
+
+
+class TestNodeProtected(base.BaseBaremetalTest):
+    """Tests for protected baremetal nodes."""
+
+    min_microversion = '1.48'
+
+    def setUp(self):
+        super(TestNodeProtected, self).setUp()
+
+        _, self.chassis = self.create_chassis()
+        _, self.node = self.create_node(self.chassis['uuid'])
+        self.provide_node(self.node['uuid'])
+
+    def tearDown(self):
+        try:
+            self.client.update_node(self.node['uuid'], protected=False)
+        except Exception:
+            pass
+        super(TestNodeProtected, self).tearDown()
+
+    @decorators.idempotent_id('52f0cb1c-ad7b-43dc-8e22-a76438b67716')
+    def test_node_protected_set_unset(self):
+        self.deploy_node(self.node['uuid'])
+        _, self.node = self.client.show_node(self.node['uuid'])
+        self.assertFalse(self.node['protected'])
+        self.assertIsNone(self.node['protected_reason'])
+
+        self.client.update_node(self.node['uuid'], protected=True,
+                                protected_reason='reason!')
+        _, self.node = self.client.show_node(self.node['uuid'])
+        self.assertTrue(self.node['protected'])
+        self.assertEqual('reason!', self.node['protected_reason'])
+
+        self.client.update_node(self.node['uuid'], protected=False)
+        _, self.node = self.client.show_node(self.node['uuid'])
+        self.assertFalse(self.node['protected'])
+        self.assertIsNone(self.node['protected_reason'])
+
+    @decorators.idempotent_id('8fbd101e-90e6-4843-b41a-556b34802972')
+    def test_node_protected(self):
+        self.deploy_node(self.node['uuid'])
+        self.client.update_node(self.node['uuid'], protected=True)
+
+        self.assertRaises(lib_exc.Forbidden,
+                          self.set_node_provision_state,
+                          self.node['uuid'], 'deleted', 'available')
+        self.assertRaises(lib_exc.Forbidden,
+                          self.set_node_provision_state,
+                          self.node['uuid'], 'rebuild', 'active')
+
+    @decorators.idempotent_id('04a21b51-2991-4213-8c2f-a96cfdada802')
+    def test_node_protected_from_deletion(self):
+        self.deploy_node(self.node['uuid'])
+        self.client.update_node(self.node['uuid'], protected=True,
+                                maintenance=True)
+
+        self.assertRaises(lib_exc.Forbidden,
+                          self.client.delete_node,
+                          self.node['uuid'])
+
+    @decorators.attr(type='negative')
+    @decorators.idempotent_id('1c819f4c-6c1d-4150-ba4a-3b0dcb3c8694')
+    def test_node_protected_negative(self):
+        # Cannot be set for available nodes
+        self.assertRaises(lib_exc.Conflict,
+                          self.client.update_node,
+                          self.node['uuid'], protected=True)
+
+        self.deploy_node(self.node['uuid'])
+
+        # Reason cannot be set for nodes that are not protected
+        self.assertRaises(lib_exc.BadRequest,
+                          self.client.update_node,
+                          self.node['uuid'], protected_reason='reason!')
+
+
+class TestNodesProtectedOldApi(base.BaseBaremetalTest):
+
+    def setUp(self):
+        super(TestNodesProtectedOldApi, self).setUp()
+        _, self.chassis = self.create_chassis()
+        _, self.node = self.create_node(self.chassis['uuid'])
+        self.deploy_node(self.node['uuid'])
+        _, self.node = self.client.show_node(self.node['uuid'])
+
+    @decorators.attr(type='negative')
+    @decorators.idempotent_id('08971546-27cc-40ab-851e-ba7bb52c00ab')
+    def test_node_protected_old_api(self):
+        exc = self.assertRaises(
+            lib_exc.RestClientException,
+            self.client.update_node, self.node['uuid'], protected=True)
+        # 400 for old ironic, 406 for new ironic with old microversion.
+        self.assertIn(exc.resp.status, (400, 406))
+
+
+class TestNodeConductor(base.BaseBaremetalTest):
+    """Tests for conductor field of baremetal nodes."""
+
+    min_microversion = '1.49'
+
+    def setUp(self):
+        super(TestNodeConductor, self).setUp()
+
+        _, self.chassis = self.create_chassis()
+        _, self.node = self.create_node(self.chassis['uuid'])
+
+    @decorators.idempotent_id('1af888b2-2a19-43da-8181-a5381d6ff536')
+    def test_conductor_exposed(self):
+        _, loaded_node = self.client.show_node(self.node['uuid'])
+        self.assertIn('conductor', loaded_node)
+
+    @decorators.idempotent_id('53bcef99-2989-4755-aa8f-c31037cd15de')
+    def test_list_nodes_by_conductor(self):
+        _, loaded_node = self.client.show_node(self.node['uuid'])
+        hostname = loaded_node['conductor']
+
+        _, nodes = self.client.list_nodes(conductor=hostname)
+        self.assertIn(self.node['uuid'],
+                      [n['uuid'] for n in nodes['nodes']])
+
+
+class TestNodeDescription(base.BaseBaremetalTest):
+    """Tests for the description field."""
+
+    min_microversion = '1.51'
+
+    def setUp(self):
+        super(TestNodeDescription, self).setUp()
+
+        _, self.chassis = self.create_chassis()
+        _, self.node = self.create_node(self.chassis['uuid'])
+
+    @decorators.idempotent_id('66d0da49-e5ac-4f49-b065-9d2207d8a3af')
+    def test_description_exposed(self):
+        _, loaded_node = self.client.show_node(self.node['uuid'])
+        self.assertIn('description', loaded_node)
+
+    @decorators.idempotent_id('85b4a4b5-37e5-4b60-8dc7-f5a26dfa78a3')
+    def test_node_description_set_unset(self):
+        self.client.update_node(self.node['uuid'], description='meow')
+        _, self.node = self.client.show_node(self.node['uuid'])
+        self.assertEqual('meow', self.node['description'])
+
+        self.client.update_node(self.node['uuid'], description=None)
+        _, self.node = self.client.show_node(self.node['uuid'])
+        self.assertIsNone(self.node['description'])
+
+    @decorators.idempotent_id('3d649bb3-a58b-4b9e-8dfa-41ab634b1153')
+    def test_create_node_with_description(self):
+        _, body = self.create_node(self.chassis['uuid'], description='meow')
+        self.assertEqual('meow', body['description'])

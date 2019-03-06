@@ -104,6 +104,21 @@ class BaremetalClient(base.BaremetalClient):
         return self._list_request('drivers')
 
     @base.handle_errors
+    def list_conductors(self, **kwargs):
+        """List all registered conductors."""
+        return self._list_request('conductors', **kwargs)
+
+    @base.handle_errors
+    def list_allocations(self, **kwargs):
+        """List all registered allocations."""
+        return self._list_request('allocations', **kwargs)
+
+    @base.handle_errors
+    def list_deploy_templates(self, **kwargs):
+        """List all deploy templates."""
+        return self._list_request('deploy_templates', **kwargs)
+
+    @base.handle_errors
     def show_node(self, uuid, api_version=None):
         """Gets a specific node.
 
@@ -199,6 +214,39 @@ class BaremetalClient(base.BaremetalClient):
         """
         return self._show_request('drivers', driver_name)
 
+    def show_conductor(self, hostname):
+        """Gets a specific conductor.
+
+        :param hostname: Hostname of conductor.
+        :return: Serialized conductor as a dictionary.
+        """
+        return self._show_request('conductors', hostname)
+
+    def show_allocation(self, allocation_ident):
+        """Gets a specific allocation.
+
+        :param allocation_ident: UUID or name of allocation.
+        :return: Serialized allocation as a dictionary.
+        """
+        return self._show_request('allocations', allocation_ident)
+
+    def show_node_allocation(self, node_ident):
+        """Gets an allocation for the node.
+
+        :param node_ident: Node UUID or name.
+        :return: Serialized allocation as a dictionary.
+        """
+        uri = '/nodes/%s/allocation' % node_ident
+        return self._show_request('nodes', uuid=None, uri=uri)
+
+    def show_deploy_template(self, deploy_template_ident):
+        """Gets a specific deploy template.
+
+        :param deploy_template_ident: Name or UUID of deploy template.
+        :return: Serialized deploy template as a dictionary.
+        """
+        return self._show_request('deploy_templates', deploy_template_ident)
+
     @base.handle_errors
     def create_node(self, chassis_id=None, **kwargs):
         """Create a baremetal node with the specified parameters.
@@ -213,8 +261,9 @@ class BaremetalClient(base.BaremetalClient):
 
         """
         node = {}
-        if kwargs.get('resource_class'):
-            node['resource_class'] = kwargs['resource_class']
+        for field in ('resource_class', 'name', 'description'):
+            if kwargs.get(field):
+                node[field] = kwargs[field]
 
         node.update(
             {'chassis_uuid': chassis_id,
@@ -282,9 +331,8 @@ class BaremetalClient(base.BaremetalClient):
             uuid: UUID of the port group. Optional.
         :return: A tuple with the server response and the created port group.
         """
-        portgroup = {'extra': kwargs.get('extra', {'foo': 'bar'})}
-
-        portgroup['node_uuid'] = node_uuid
+        portgroup = {'extra': kwargs.get(
+            'extra', {'foo': 'bar', 'open': 'stack'}), 'node_uuid': node_uuid}
 
         if kwargs.get('address'):
             portgroup['address'] = kwargs['address']
@@ -293,6 +341,17 @@ class BaremetalClient(base.BaremetalClient):
             portgroup['name'] = kwargs['name']
 
         return self._create_request('portgroups', portgroup)
+
+    @base.handle_errors
+    def update_portgroup(self, uuid, patch):
+        """Update the specified port group.
+
+        :param uuid: The unique identifier of the port group.
+        :param patch: List of dicts representing json patches.
+        :return: A tuple with the server response and the updated port group.
+        """
+
+        return self._patch_request('portgroups', uuid, patch)
 
     @base.handle_errors
     def create_volume_connector(self, node_uuid, **kwargs):
@@ -339,6 +398,26 @@ class BaremetalClient(base.BaremetalClient):
                 volume_target[arg] = kwargs[arg]
 
         return self._create_request('volume/targets', volume_target)
+
+    @base.handle_errors
+    def create_deploy_template(self, name, **kwargs):
+        """Create a deploy template with the specified parameters.
+
+        :param name: The name of the deploy template.
+        :param kwargs:
+            steps: deploy steps of the template.
+            uuid: UUID of the deploy template. Optional.
+            extra: meta-data of the deploy template. Optional.
+        :return: A tuple with the server response and the created deploy
+            template.
+        """
+        deploy_template = {'name': name}
+
+        for arg in ('extra', 'steps', 'uuid'):
+            if arg in kwargs:
+                deploy_template[arg] = kwargs[arg]
+
+        return self._create_request('deploy_templates', deploy_template)
 
     @base.handle_errors
     def delete_node(self, uuid):
@@ -399,6 +478,15 @@ class BaremetalClient(base.BaremetalClient):
         return self._delete_request('volume/targets', volume_target_ident)
 
     @base.handle_errors
+    def delete_deploy_template(self, deploy_template_ident):
+        """Deletes a deploy template having the specified name or UUID.
+
+        :param deploy_template_ident: Name or UUID of the deploy template.
+        :return: A tuple with the server response and the response body.
+        """
+        return self._delete_request('deploy_templates', deploy_template_ident)
+
+    @base.handle_errors
     def update_node(self, uuid, patch=None, **kwargs):
         """Update the specified node.
 
@@ -424,7 +512,13 @@ class BaremetalClient(base.BaremetalClient):
                            'deploy_interface',
                            'rescue_interface',
                            'instance_uuid',
-                           'resource_class')
+                           'resource_class',
+                           'protected',
+                           'protected_reason',
+                           # TODO(dtantsur): maintenance is set differently
+                           # in newer API versions.
+                           'maintenance',
+                           'description')
         if not patch:
             patch = self._make_patch(node_attributes, **kwargs)
 
@@ -480,6 +574,20 @@ class BaremetalClient(base.BaremetalClient):
         """
 
         return self._patch_request('volume/targets', uuid, patch)
+
+    @base.handle_errors
+    def update_deploy_template(self, deploy_template_ident, patch):
+        """Update the specified deploy template.
+
+        :param deploy_template_ident: Name or UUID of the deploy template.
+        :param patch: List of dicts representing json patches. Each dict
+            has keys 'path', 'op' and 'value'; to update a field.
+        :return: A tuple with the server response and the updated deploy
+            template.
+        """
+
+        return self._patch_request('deploy_templates', deploy_template_ident,
+                                   patch)
 
     @base.handle_errors
     def set_node_power_state(self, node_uuid, state):
@@ -733,3 +841,25 @@ class BaremetalClient(base.BaremetalClient):
                                           (node_uuid, trait), {})
         self.expected_success(http_client.NO_CONTENT, resp.status)
         return resp, body
+
+    @base.handle_errors
+    def create_allocation(self, resource_class, **kwargs):
+        """Create a baremetal allocation with the specified parameters.
+
+        :param resource_class: Resource class to request.
+        :param kwargs: Other fields to pass.
+        :return: A tuple with the server response and the created allocation.
+
+        """
+        kwargs['resource_class'] = resource_class
+        return self._create_request('allocations', kwargs)
+
+    @base.handle_errors
+    def delete_allocation(self, allocation_ident):
+        """Deletes an allocation.
+
+        :param allocation_ident: UUID or name of the allocation.
+        :return: A tuple with the server response and the response body.
+
+        """
+        return self._delete_request('allocations', allocation_ident)

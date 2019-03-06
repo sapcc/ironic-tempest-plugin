@@ -10,9 +10,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import json
 import os
 import time
+
+from oslo_serialization import jsonutils as json
 
 import six
 import tempest
@@ -201,8 +202,7 @@ class InspectorScenarioTest(BaremetalScenarioTest):
         while True:
             time.sleep(CONF.baremetal_introspection.hypervisor_update_sleep)
             stats = self.hypervisor_stats()
-            expected_cpus = self.baremetal_flavor()['vcpus']
-            if int(stats['hypervisor_statistics']['vcpus']) >= expected_cpus:
+            if int(stats['hypervisor_statistics']['count']):
                 break
 
             timeout = CONF.baremetal_introspection.hypervisor_update_timeout

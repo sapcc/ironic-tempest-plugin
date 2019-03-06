@@ -18,6 +18,8 @@ from tempest.lib import exceptions as lib_exc
 from tempest import test
 
 from ironic_tempest_plugin import clients
+from ironic_tempest_plugin.common import waiters
+from ironic_tempest_plugin.services.baremetal import base
 from ironic_tempest_plugin.tests.api.admin import api_microversion_fixture
 
 CONF = config.CONF
@@ -32,8 +34,8 @@ SUPPORTED_DRIVERS = ['fake', 'fake-hardware']
 
 # NOTE(jroll): resources must be deleted in a specific order, this list
 # defines the resource types to clean up, and the correct order.
-RESOURCE_TYPES = ['port', 'portgroup', 'volume_connector', 'volume_target',
-                  'node', 'chassis']
+RESOURCE_TYPES = ['port', 'portgroup', 'node', 'volume_connector',
+                  'volume_target', 'chassis', 'deploy_template']
 
 
 def creates(resource):
@@ -104,18 +106,35 @@ class BaseBaremetalTest(api_version_utils.BaseMicroversionTest,
         cls.created_objects = {}
         for resource in RESOURCE_TYPES:
             cls.created_objects[resource] = set()
+        cls.deployed_nodes = set()
 
     @classmethod
     def resource_cleanup(cls):
         """Ensure that all created objects get destroyed."""
-
+        # Use the requested microversion for cleanup to ensure we can delete
+        # resources.
+        base.set_baremetal_api_microversion(cls.request_microversion)
         try:
+            for node in cls.deployed_nodes:
+                try:
+                    cls.set_node_provision_state(node, 'deleted',
+                                                 ['available', None])
+                except lib_exc.BadRequest:
+                    pass
+
+            for node in cls.created_objects['node']:
+                try:
+                    cls.client.update_node(node, instance_uuid=None)
+                except lib_exc.TempestException:
+                    pass
+
             for resource in RESOURCE_TYPES:
                 uuids = cls.created_objects[resource]
                 delete_method = getattr(cls.client, 'delete_%s' % resource)
                 for u in uuids:
                     delete_method(u, ignore_errors=lib_exc.NotFound)
         finally:
+            base.reset_baremetal_api_microversion()
             super(BaseBaremetalTest, cls).resource_cleanup()
 
     def _assertExpected(self, expected, actual):
@@ -163,7 +182,7 @@ class BaseBaremetalTest(api_version_utils.BaseMicroversionTest,
     @classmethod
     @creates('node')
     def create_node(cls, chassis_id, cpu_arch='x86_64', cpus=8, local_gb=10,
-                    memory_mb=4096, resource_class=None):
+                    memory_mb=4096, **kwargs):
         """Wrapper utility for creating test baremetal nodes.
 
         :param chassis_id: The unique identifier of the chassis.
@@ -171,7 +190,7 @@ class BaseBaremetalTest(api_version_utils.BaseMicroversionTest,
         :param cpus: Number of CPUs. Default: 8.
         :param local_gb: Disk size. Default: 10.
         :param memory_mb: Available RAM. Default: 4096.
-        :param resource_class: Node resource class.
+        :param kwargs: Other optional node fields.
         :return: A tuple with the server response and the created node.
 
         """
@@ -179,9 +198,66 @@ class BaseBaremetalTest(api_version_utils.BaseMicroversionTest,
                                             cpus=cpus, local_gb=local_gb,
                                             memory_mb=memory_mb,
                                             driver=cls.driver,
-                                            resource_class=resource_class)
+                                            **kwargs)
 
         return resp, body
+
+    @classmethod
+    def set_node_provision_state(cls, node_id, target, expected, timeout=None,
+                                 interval=None):
+        """Sets the node's provision state.
+
+        :param node_id: The unique identifier of the node.
+        :param target: Target provision state.
+        :param expected: Expected final provision state or list of states.
+        :param timeout: The timeout for reaching the expected state.
+            Defaults to client.build_timeout.
+        :param interval: An interval between show_node calls for status check.
+            Defaults to client.build_interval.
+        """
+        cls.client.set_node_provision_state(node_id, target)
+        waiters.wait_for_bm_node_status(cls.client, node_id,
+                                        'provision_state', expected,
+                                        timeout=timeout, interval=interval)
+
+    @classmethod
+    def provide_node(cls, node_id, cleaning_timeout=None):
+        """Make the node available.
+
+        :param node_id: The unique identifier of the node.
+        :param cleaning_timeout: The timeout to wait for cleaning.
+            Defaults to client.build_timeout.
+        """
+        _, body = cls.client.show_node(node_id)
+        current_state = body['provision_state']
+        if current_state == 'enroll':
+            cls.set_node_provision_state(node_id, 'manage', 'manageable',
+                                         timeout=60, interval=1)
+            current_state = 'manageable'
+        if current_state == 'manageable':
+            cls.set_node_provision_state(node_id, 'provide',
+                                         ['available', None],
+                                         timeout=cleaning_timeout)
+            current_state = 'available'
+        if current_state not in ('available', None):
+            raise RuntimeError("Cannot reach state 'available': node %(node)s "
+                               "is in unexpected state %(state)s" %
+                               {'node': node_id, 'state': current_state})
+
+    @classmethod
+    def deploy_node(cls, node_id, cleaning_timeout=None, deploy_timeout=None):
+        """Deploy the node.
+
+        :param node_id: The unique identifier of the node.
+        :param cleaning_timeout: The timeout to wait for cleaning.
+            Defaults to client.build_timeout.
+        :param deploy_timeout: The timeout to wait for deploy.
+            Defaults to client.build_timeout.
+        """
+        cls.provide_node(node_id, cleaning_timeout=cleaning_timeout)
+        cls.set_node_provision_state(node_id, 'active', 'active',
+                                     timeout=deploy_timeout)
+        cls.deployed_nodes.add(node_id)
 
     @classmethod
     @creates('port')
@@ -246,6 +322,19 @@ class BaseBaremetalTest(api_version_utils.BaseMicroversionTest,
         """
         resp, body = cls.client.create_volume_target(node_uuid=node_uuid,
                                                      **kwargs)
+
+        return resp, body
+
+    @classmethod
+    @creates('deploy_template')
+    def create_deploy_template(cls, name, **kwargs):
+        """Wrapper utility for creating test deploy template.
+
+        :param name: The name of the deploy template.
+        :return: A tuple with the server response and the created deploy
+            template.
+        """
+        resp, body = cls.client.create_deploy_template(name=name, **kwargs)
 
         return resp, body
 
@@ -337,6 +426,21 @@ class BaseBaremetalTest(api_version_utils.BaseMicroversionTest,
 
         if volume_target_id in cls.created_objects['volume_target']:
             cls.created_objects['volume_target'].remove(volume_target_id)
+
+        return resp
+
+    @classmethod
+    def delete_deploy_template(cls, deploy_template_ident):
+        """Deletes a deploy template having the specified name or UUID.
+
+        :param deploy_template_ident: Name or UUID of the deploy template.
+        :return: Server response.
+        """
+        resp, body = cls.client.delete_deploy_template(deploy_template_ident)
+
+        if deploy_template_ident in cls.created_objects['deploy_template']:
+            cls.created_objects['deploy_template'].remove(
+                deploy_template_ident)
 
         return resp
 

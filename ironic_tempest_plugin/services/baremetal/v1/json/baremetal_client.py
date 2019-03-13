@@ -261,7 +261,7 @@ class BaremetalClient(base.BaremetalClient):
 
         """
         node = {}
-        for field in ('resource_class', 'name', 'description'):
+        for field in ('resource_class', 'name', 'description', 'conductor_group'):
             if kwargs.get(field):
                 node[field] = kwargs[field]
 

@@ -89,25 +89,6 @@ class TestNodeStatesV1_1(TestNodeStatesMixin, base.BaseBaremetalTest):
             self._validate_provision_state(node['uuid'], target_state)
 
 
-class TestNodeStatesV1_2(TestNodeStatesMixin, base.BaseBaremetalTest):
-
-    def setUp(self):
-        super(TestNodeStatesV1_2, self).setUp()
-        self.useFixture(api_microversion_fixture.APIMicroversionFixture('1.2'))
-
-    @decorators.idempotent_id('9c414984-f3b6-4b3d-81da-93b60d4662fb')
-    def test_set_node_provision_state(self):
-        _, node = self.create_node(self.chassis['uuid'])
-        # Nodes appear in AVAILABLE state by default from v1.2 to v1.10
-        self.assertEqual('available', node['provision_state'])
-        provision_states_list = ['active', 'deleted']
-        target_states_list = ['active', 'available']
-        for (provision_state, target_state) in zip(provision_states_list,
-                                                   target_states_list):
-            self.client.set_node_provision_state(node['uuid'], provision_state)
-            self._validate_provision_state(node['uuid'], target_state)
-
-
 class TestNodeStatesV1_46(TestNodeStatesMixin, base.BaseBaremetalTest):
 
     def setUp(self):
@@ -117,71 +98,18 @@ class TestNodeStatesV1_46(TestNodeStatesMixin, base.BaseBaremetalTest):
     @decorators.idempotent_id('3d606003-05ce-4b5a-964d-bdee382fafe9')
     def test_set_node_provision_state(self):
         _, node = self.create_node(self.chassis['uuid'])
-        # Nodes appear in AVAILABLE state by default from v1.2 to v1.10
-        self.assertEqual('available', node['provision_state'])
+        # Nodes appear in ENROLL state by default from v1.11
+        self.assertEqual('enroll', node['provision_state'])
         # MANAGEABLE state and PROVIDE transition have been added in v1.4
         provision_states_list = [
-            'manage', 'provide', 'active', 'deleted']
+            'manage', 'inspect', 'provide', 'active', 'deleted']
         target_states_list = [
             'manageable', 'available', 'active', 'available']
         for (provision_state, target_state) in zip(provision_states_list,
                                                    target_states_list):
             self.client.set_node_provision_state(node['uuid'], provision_state)
             self._validate_provision_state(node['uuid'], target_state)
-
-
-class TestNodeStatesV1_6(TestNodeStatesMixin, base.BaseBaremetalTest):
-
-    def setUp(self):
-        super(TestNodeStatesV1_6, self).setUp()
-        self.useFixture(api_microversion_fixture.APIMicroversionFixture('1.6'))
-
-    @decorators.idempotent_id('6c9ce4a3-713b-4c76-91af-18c48d01f1bb')
-    def test_set_node_provision_state(self):
-        _, node = self.create_node(self.chassis['uuid'])
-        # Nodes appear in AVAILABLE state by default from v1.2 to v1.10
-        self.assertEqual('available', node['provision_state'])
-        # INSPECT* states have been added in v1.6
-        provision_states_list = [
-            'manage', 'inspect', 'provide', 'active', 'deleted']
-        target_states_list = [
-            'manageable', 'manageable', 'available', 'active', 'available']
-        for (provision_state, target_state) in zip(provision_states_list,
-                                                   target_states_list):
-            self.client.set_node_provision_state(node['uuid'], provision_state)
-            self._validate_provision_state(node['uuid'], target_state)
-
-
-class TestNodeStatesV1_11(TestNodeStatesMixin, base.BaseBaremetalTest):
-
-    def setUp(self):
-        super(TestNodeStatesV1_11, self).setUp()
-        self.useFixture(
-            api_microversion_fixture.APIMicroversionFixture('1.11')
-        )
-
-    @decorators.idempotent_id('31f53828-b83d-40c7-98e5-843e28a1b6b9')
-    def test_set_node_provision_state(self):
-        _, node = self.create_node(self.chassis['uuid'])
-        # Nodes appear in ENROLL state by default from v1.11
-        self.assertEqual('enroll', node['provision_state'])
-        provision_states_list = [
-            'manage', 'inspect', 'provide', 'active', 'deleted']
-        target_states_list = [
-            'manageable', 'manageable', 'available', 'active', 'available']
-        for (provision_state, target_state) in zip(provision_states_list,
-                                                   target_states_list):
-            self.client.set_node_provision_state(node['uuid'], provision_state)
-            self._validate_provision_state(node['uuid'], target_state)
-
-
-class TestNodeStatesV1_12(TestNodeStatesMixin, base.BaseBaremetalTest):
-
-    def setUp(self):
-        super(TestNodeStatesV1_12, self).setUp()
-        self.useFixture(
-            api_microversion_fixture.APIMicroversionFixture('1.12')
-        )
+    
 
     @decorators.idempotent_id('4427b1ca-8e79-4139-83d6-77dfac03e61e')
     def test_set_node_raid_config(self):

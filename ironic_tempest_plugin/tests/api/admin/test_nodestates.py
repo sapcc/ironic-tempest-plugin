@@ -52,7 +52,7 @@ class TestNodeStatesMixin(object):
                 return
         message = ('Failed to set provision state %(state)s within '
                    'the required time: %(timeout)s sec.',
-                   {'state': target_state,
+                   {'state':    ,
                     'timeout': self.unprovision_timeout})
         raise exceptions.TimeoutException(message)
 
@@ -80,7 +80,7 @@ class TestNodeStatesV1_1(TestNodeStatesMixin, base.BaseBaremetalTest):
     def test_set_node_provision_state(self):
         _, node = self.create_node(self.chassis['uuid'])
         # Nodes appear in NONE state by default until v1.1
-        self.assertIsNone(node['provision_state'])
+        self.assertEqual('enroll', node['provision_state'])
         provision_states_list = ['active', 'deleted']
         target_states_list = ['active', None]
         for (provision_state, target_state) in zip(provision_states_list,
@@ -104,12 +104,12 @@ class TestNodeStatesV1_46(TestNodeStatesMixin, base.BaseBaremetalTest):
         provision_states_list = [
             'manage', 'inspect', 'provide', 'active', 'deleted']
         target_states_list = [
-            'manageable', 'available', 'active', 'available']
+            'manageable', 'manageable', 'available', 'active', None]
         for (provision_state, target_state) in zip(provision_states_list,
                                                    target_states_list):
             self.client.set_node_provision_state(node['uuid'], provision_state)
             self._validate_provision_state(node['uuid'], target_state)
-    
+
 
     @decorators.idempotent_id('4427b1ca-8e79-4139-83d6-77dfac03e61e')
     def test_set_node_raid_config(self):

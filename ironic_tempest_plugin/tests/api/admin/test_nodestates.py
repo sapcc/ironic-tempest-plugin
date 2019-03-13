@@ -52,7 +52,7 @@ class TestNodeStatesMixin(object):
                 return
         message = ('Failed to set provision state %(state)s within '
                    'the required time: %(timeout)s sec.',
-                   {'state':    ,
+                   {'state': target_state,
                     'timeout': self.unprovision_timeout})
         raise exceptions.TimeoutException(message)
 

@@ -198,6 +198,7 @@ class BaseBaremetalTest(api_version_utils.BaseMicroversionTest,
                                             cpus=cpus, local_gb=local_gb,
                                             memory_mb=memory_mb,
                                             driver=cls.driver,
+                                            conductor_group='testing',
                                             **kwargs)
 
         return resp, body

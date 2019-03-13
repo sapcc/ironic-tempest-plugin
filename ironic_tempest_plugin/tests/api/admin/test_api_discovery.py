@@ -25,6 +25,8 @@ class TestApiDiscovery(base.BaseBaremetalTest):
             api_microversion_fixture.APIMicroversionFixture(None))
         _, descr = self.client.get_api_description()
         expected_versions = ('v1',)
+        print(descr)
+        print(descr['versions'])
         versions = [version['id'] for version in descr['versions']]
 
         for v in expected_versions:

@@ -79,8 +79,9 @@ class TestNodeStatesV1_1(TestNodeStatesMixin, base.BaseBaremetalTest):
         _, node = self.create_node(self.chassis['uuid'])
         # Nodes appear in NONE state by default until v1.1
         self.assertEqual('enroll', node['provision_state'])
-        provision_states_list = ['manage', 'provide', 'active', 'deleted']
-        target_states_list = ['manageable', 'available', 'active', None]
+        # cannot delete active node: DELETE_ALLOWED_STATES = (MANAGEABLE, ENROLL, ADOPTFAIL)
+        provision_states_list = ['manage', 'provide', 'active']
+        target_states_list = ['manageable', 'available', 'active']
         for (provision_state, target_state) in zip(provision_states_list,
                                                    target_states_list):
             self.client.set_node_provision_state(node['uuid'], provision_state)
@@ -100,9 +101,10 @@ class TestNodeStatesV1_46(TestNodeStatesMixin, base.BaseBaremetalTest):
         self.assertEqual('enroll', node['provision_state'])
         # MANAGEABLE state and PROVIDE transition have been added in v1.4
         provision_states_list = [
-            'manage', 'inspect', 'provide', 'active', 'deleted']
+            'manage', 'inspect', 'provide', 'active']
+        # cannot delete active node: DELETE_ALLOWED_STATES = (MANAGEABLE, ENROLL, ADOPTFAIL)
         target_states_list = [
-            'manageable', 'manageable', 'available', 'active', None]
+            'manageable', 'manageable', 'available', 'active']
         for (provision_state, target_state) in zip(provision_states_list,
                                                    target_states_list):
             self.client.set_node_provision_state(node['uuid'], provision_state)

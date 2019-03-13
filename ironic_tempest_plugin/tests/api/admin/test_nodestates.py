@@ -108,11 +108,11 @@ class TestNodeStatesV1_2(TestNodeStatesMixin, base.BaseBaremetalTest):
             self._validate_provision_state(node['uuid'], target_state)
 
 
-class TestNodeStatesV1_4(TestNodeStatesMixin, base.BaseBaremetalTest):
+class TestNodeStatesV1_46(TestNodeStatesMixin, base.BaseBaremetalTest):
 
     def setUp(self):
-        super(TestNodeStatesV1_4, self).setUp()
-        self.useFixture(api_microversion_fixture.APIMicroversionFixture('1.4'))
+        super(TestNodeStatesV1_46, self).setUp()
+        self.useFixture(api_microversion_fixture.APIMicroversionFixture('1.46'))
 
     @decorators.idempotent_id('3d606003-05ce-4b5a-964d-bdee382fafe9')
     def test_set_node_provision_state(self):

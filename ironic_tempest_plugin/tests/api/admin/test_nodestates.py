@@ -50,10 +50,8 @@ class TestNodeStatesMixin(object):
             _, node = self.client.show_node(node_uuid)
             if node['provision_state'] == target_state:
                 return
-        message = ('Failed to set provision state %(state)s within '
-                   'the required time: %(timeout)s sec.',
-                   {'state': target_state,
-                    'timeout': self.unprovision_timeout})
+        message = ('Failed to set provision state %s within '
+                   'the required time: %s sec.' % (target_state, self.unprovision_timeout))
         raise exceptions.TimeoutException(message)
 
     @decorators.idempotent_id('cd8afa5e-3f57-4e43-8185-beb83d3c9015')
@@ -81,8 +79,8 @@ class TestNodeStatesV1_1(TestNodeStatesMixin, base.BaseBaremetalTest):
         _, node = self.create_node(self.chassis['uuid'])
         # Nodes appear in NONE state by default until v1.1
         self.assertEqual('enroll', node['provision_state'])
-        provision_states_list = ['active', 'deleted']
-        target_states_list = ['active', None]
+        provision_states_list = ['manage', 'provide', 'active', 'deleted']
+        target_states_list = ['manageable', 'available', 'active', None]
         for (provision_state, target_state) in zip(provision_states_list,
                                                    target_states_list):
             self.client.set_node_provision_state(node['uuid'], provision_state)

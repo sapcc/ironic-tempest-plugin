@@ -183,7 +183,7 @@ class TestNodes(base.BaseBaremetalTest):
 
 class TestNodesResourceClass(base.BaseBaremetalTest):
 
-    min_microversion = '1.21'
+    min_microversion = '1.46'
 
     def setUp(self):
         super(TestNodesResourceClass, self).setUp()
@@ -192,9 +192,9 @@ class TestNodesResourceClass(base.BaseBaremetalTest):
                 TestNodesResourceClass.min_microversion)
         )
         _, self.chassis = self.create_chassis()
-        #self.resource_class = data_utils.rand_name(name='Resource_Class')
+        self.resource_class = data_utils.rand_name(name='Resource_Class')
         _, self.node = self.create_node(
-            self.chassis['uuid'])
+            self.chassis['uuid'], resource_class=self.resource_class)
 
     @decorators.idempotent_id('2a00340c-8152-4a61-9fc5-0b3cdefec258')
     def test_create_node_resource_class_long(self):

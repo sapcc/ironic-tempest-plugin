@@ -14,9 +14,7 @@ from tempest.lib import decorators
 
 from ironic_tempest_plugin.tests.api.admin import api_microversion_fixture
 from ironic_tempest_plugin.tests.api.admin import base
-from oslo_log import log
 
-LOG = log.getLogger(__name__)
 
 class TestApiDiscovery(base.BaseBaremetalTest):
     """Tests for API discovery features."""
@@ -26,9 +24,8 @@ class TestApiDiscovery(base.BaseBaremetalTest):
         self.useFixture(
             api_microversion_fixture.APIMicroversionFixture(None))
         _, descr = self.client.get_api_description()
-        expected_versions = ('v1',)
-        log.debug(descr)
-        log.debug(descr['versions'])
+        # dont check for major (v1): https://github.com/sapcc/ironic/commit/8181b4de139ebf3cec665ee4c48b7798e19187fc
+        expected_versions = ('1.46',)
         versions = [version['id'] for version in descr['versions']]
 
         for v in expected_versions:
@@ -40,7 +37,8 @@ class TestApiDiscovery(base.BaseBaremetalTest):
             api_microversion_fixture.APIMicroversionFixture(None))
         _, descr = self.client.get_api_description()
         default_version = descr['default_version']
-        self.assertEqual('v1', default_version['id'])
+        # dont check for major (v1): https://github.com/sapcc/ironic/commit/8181b4de139ebf3cec665ee4c48b7798e19187fc
+        self.assertEqual('1.46', default_version['id'])
 
     @decorators.idempotent_id('abc0b34d-e684-4546-9728-ab7a9ad9f174')
     def test_version_1_resources(self):

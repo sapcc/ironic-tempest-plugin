@@ -73,12 +73,8 @@ def wait_for_bm_node_status(client, node_id, attr, status, timeout=None,
 
     if not test_utils.call_until_true(is_attr_in_status, timeout,
                                       interval):
-        message = ('Node %(node_id)s failed to reach %(attr)s=%(status)s '
-                   'within the required time (%(timeout)s s).' %
-                   {'node_id': node_id,
-                    'attr': attr,
-                    'status': status,
-                    'timeout': timeout})
+        message = ('Node %s failed to reach %s=%s '
+                   'within the required time (%s s).' %  (node_id, attr, status, timeout))
         caller = test_utils.find_test_caller()
         if caller:
             message = '(%s) %s' % (caller, message)

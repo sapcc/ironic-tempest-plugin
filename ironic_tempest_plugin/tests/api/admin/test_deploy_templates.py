@@ -199,13 +199,14 @@ class TestDeployTemplates(base.BaseBaremetalTest):
 class TestDeployTemplatesOldAPI(base.BaseBaremetalTest):
     """Negative tests for deploy templates using an old API version."""
 
-    max_microversion = '1.54'
+    # Available with 1.55 (Stein)
+    min_microversion = '1.55'
 
     def setUp(self):
         super(TestDeployTemplatesOldAPI, self).setUp()
         self.useFixture(
             api_microversion_fixture.APIMicroversionFixture(
-                self.max_microversion)
+                self.min_microversion)
         )
 
     @decorators.attr(type=['negative'])

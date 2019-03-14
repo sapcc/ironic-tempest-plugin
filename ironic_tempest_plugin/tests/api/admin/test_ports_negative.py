@@ -379,7 +379,7 @@ class TestPortsWithPhysicalNetworkOldAPI(base.BaseBaremetalTest):
 class TestPortsNegativeWithPhysicalNetwork(base.BaseBaremetalTest):
     """Negative tests for ports with physical network information."""
 
-    min_microversion = '1.34'
+    min_microversion = '1.46'
 
     def setUp(self):
         super(TestPortsNegativeWithPhysicalNetwork, self).setUp()

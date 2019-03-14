@@ -301,7 +301,7 @@ class TestNodesResourceClassOldApi(base.BaseBaremetalTest):
 
 class TestNodesVif(base.BaseBaremetalTest):
 
-    min_microversion = '1.28'
+    min_microversion = '1.46'
 
     @classmethod
     def skip_checks(cls):
@@ -421,7 +421,7 @@ class TestNodesVif(base.BaseBaremetalTest):
 
 class TestHardwareInterfaces(base.BaseBaremetalTest):
 
-    min_microversion = '1.31'
+    min_microversion = '1.46'
     # Subclasses can override this with more interfaces available in later API
     # versions.
     hardware_interfaces = [
@@ -481,7 +481,7 @@ class TestHardwareInterfaces(base.BaseBaremetalTest):
 
 class TestResetInterfaces(TestHardwareInterfaces):
 
-    min_microversion = '1.45'
+    min_microversion = '1.46'
 
     @classmethod
     def skip_checks(cls):
@@ -512,7 +512,7 @@ class TestResetInterfaces(TestHardwareInterfaces):
 class TestNodeFault(base.BaseBaremetalTest):
     """Tests for fault of baremetal nodes."""
 
-    min_microversion = '1.42'
+    min_microversion = '1.46'
 
     def setUp(self):
         super(TestNodeFault, self).setUp()

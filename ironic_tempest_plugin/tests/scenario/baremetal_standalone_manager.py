@@ -33,7 +33,7 @@ class BaremetalStandaloneManager(bm.BaremetalScenarioTest,
     credentials = ['primary', 'admin']
     # NOTE(vsaienko): Standalone tests are using v1/node/<node_ident>/vifs to
     # attach VIF to a node.
-    min_microversion = '1.28'
+    min_microversion = '1.46'
 
     image_ref = None
     image_checksum = None

@@ -185,8 +185,8 @@ class BaremetalIpmiAnsibleWholedisk(bsm.BaremetalStandaloneScenarioTest):
 
 class BaremetalIpmiRescueWholedisk(bsm.BaremetalStandaloneScenarioTest):
 
-    api_microversion = '1.38'
-    min_microversion = '1.38'
+    api_microversion = '1.46'
+    min_microversion = '1.46'
     driver = 'ipmi'
     rescue_interface = 'agent'
     image_ref = CONF.baremetal.whole_disk_image_ref
@@ -213,8 +213,8 @@ class BaremetalIpmiRescueWholedisk(bsm.BaremetalStandaloneScenarioTest):
 
 class BaremetalIpmiRescuePartitioned(bsm.BaremetalStandaloneScenarioTest):
 
-    api_microversion = '1.38'
-    min_microversion = '1.38'
+    api_microversion = '1.46'
+    min_microversion = '1.46'
     driver = 'ipmi'
     rescue_interface = 'agent'
     image_ref = CONF.baremetal.partition_image_ref

@@ -343,8 +343,17 @@ class TestPortsNegative(base.BaseBaremetalTest):
 class TestPortsWithPhysicalNetworkOldAPI(base.BaseBaremetalTest):
     """Negative tests for ports with physical network information."""
 
+    #Make sure we use the old api
+    max_microversion = '1.1'
+
     def setUp(self):
         super(TestPortsWithPhysicalNetworkOldAPI, self).setUp()
+
+        self.useFixture(
+            api_microversion_fixture.APIMicroversionFixture(
+                TestPortsNegativeWithPhysicalNetwork.max_microversion)
+        )
+
         _, self.chassis = self.create_chassis()
         _, self.node = self.create_node(self.chassis['uuid'])
 
@@ -354,7 +363,7 @@ class TestPortsWithPhysicalNetworkOldAPI(base.BaseBaremetalTest):
         node_id = self.node['uuid']
         address = data_utils.rand_mac_address()
 
-        self.assertRaises((lib_exc.BadRequest, lib_exc.UnexpectedResponseCode),
+        self.assertRaises((lib_exc.NotFound, lib_exc.UnexpectedResponseCode),
                           self.create_port,
                           node_id=node_id, address=address,
                           physical_network='physnet1')
@@ -371,7 +380,7 @@ class TestPortsWithPhysicalNetworkOldAPI(base.BaseBaremetalTest):
                   'op': 'replace',
                   'value': new_physnet}]
 
-        self.assertRaises((lib_exc.BadRequest, lib_exc.UnexpectedResponseCode),
+        self.assertRaises((lib_exc.NotFound, lib_exc.UnexpectedResponseCode),
                           self.client.update_port,
                           port['uuid'], patch)
 
@@ -379,7 +388,7 @@ class TestPortsWithPhysicalNetworkOldAPI(base.BaseBaremetalTest):
 class TestPortsNegativeWithPhysicalNetwork(base.BaseBaremetalTest):
     """Negative tests for ports with physical network information."""
 
-    min_microversion = '1.34'
+    min_microversion = '1.46'
 
     def setUp(self):
         super(TestPortsNegativeWithPhysicalNetwork, self).setUp()

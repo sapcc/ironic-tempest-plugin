@@ -24,7 +24,7 @@ from ironic_tempest_plugin.tests.api.admin import base
 class TestVolumeTarget(base.BaseBaremetalTest):
     """Basic test cases for volume target."""
 
-    min_microversion = '1.32'
+    min_microversion = '1.46'
     extra = {'key1': 'value1', 'key2': 'value2'}
 
     def setUp(self):

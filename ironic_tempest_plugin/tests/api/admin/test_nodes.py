@@ -322,7 +322,7 @@ class TestNodesVif(base.BaseBaremetalTest):
 
         _, self.chassis = self.create_chassis()
         _, self.node = self.create_node(self.chassis['uuid'])
-        #self.client.set_node_power_state(self.node['uuid'], 'active')
+        self.client.set_node_power_state(self.node['uuid'], 'active')
 
         if CONF.network.shared_physical_network:
             self.net = self.os_admin.networks_client.list_networks(

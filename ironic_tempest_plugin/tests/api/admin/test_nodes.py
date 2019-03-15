@@ -322,6 +322,8 @@ class TestNodesVif(base.BaseBaremetalTest):
 
         _, self.chassis = self.create_chassis()
         _, self.node = self.create_node(self.chassis['uuid'])
+        #self.client.set_node_power_state(self.node['uuid'], 'active')
+
         if CONF.network.shared_physical_network:
             self.net = self.os_admin.networks_client.list_networks(
                 name=CONF.compute.fixed_network_name)['networks'][0]
@@ -349,7 +351,7 @@ class TestNodesVif(base.BaseBaremetalTest):
         6) Check that no more VIF info in VIFs list and port internal_info.
         """
         self.useFixture(
-            api_microversion_fixture.APIMicroversionFixture('1.28'))
+            api_microversion_fixture.APIMicroversionFixture('1.46'))
         _, self.port = self.create_port(self.node['uuid'],
                                         data_utils.rand_mac_address())
         self.client.vif_attach(self.node['uuid'], self.nport_id)
@@ -380,7 +382,7 @@ class TestNodesVif(base.BaseBaremetalTest):
         8) Check that no VIF info in VIFs list and port group internal_info.
         """
         self.useFixture(
-            api_microversion_fixture.APIMicroversionFixture('1.28'))
+            api_microversion_fixture.APIMicroversionFixture('1.46'))
         _, self.port = self.create_port(self.node['uuid'],
                                         data_utils.rand_mac_address())
         _, self.portgroup = self.create_portgroup(
@@ -410,7 +412,7 @@ class TestNodesVif(base.BaseBaremetalTest):
     @decorators.idempotent_id('a3d319d0-cacb-4e55-a3dc-3fa8b74880f2')
     def test_vif_already_set_on_extra(self):
         self.useFixture(
-            api_microversion_fixture.APIMicroversionFixture('1.28'))
+            api_microversion_fixture.APIMicroversionFixture('1.46'))
         _, self.port = self.create_port(self.node['uuid'],
                                         data_utils.rand_mac_address())
         patch = [{'path': '/extra/vif_port_id',

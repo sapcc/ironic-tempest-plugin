@@ -275,8 +275,8 @@ class BaseBaremetalTest(api_version_utils.BaseMicroversionTest,
             member.
         :param physical_network: The physical network to which the port is
             attached.
-        :param local_link_connection: This information is provided to the Networking service’s ML2 driver,
-            when a Virtual Interface (VIF) is attached. Needed when node network_interface=Neutron.
+        :param local_link_connection: This information is provided to the Networking service ML2 driver,
+            when a Virtual Interface is attached. Needed when node network_interface is set to Neutron.
         :return: A tuple with the server response and the created port.
 
         """

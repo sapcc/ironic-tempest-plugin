@@ -281,6 +281,7 @@ class BaseBaremetalTest(api_version_utils.BaseMicroversionTest,
 
         """
         extra = extra or {}
+        local_link_connection = local_link_connection or {}
         resp, body = cls.client.create_port(address=address, node_id=node_id,
                                             extra=extra, uuid=uuid,
                                             portgroup_uuid=portgroup_uuid,

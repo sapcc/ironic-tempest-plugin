@@ -353,7 +353,8 @@ class TestNodesVif(base.BaseBaremetalTest):
             api_microversion_fixture.APIMicroversionFixture('1.46'))
         _, self.port = self.create_port(self.node['uuid'],
                                         data_utils.rand_mac_address(),
-                                        local_link_connection={'switch_id': data_utils.rand_mac_address()})
+                                        local_link_connection={'switch_id': data_utils.rand_mac_address(),
+                                        'port_id': 'Gig0/1'})
         self.client.vif_attach(self.node['uuid'], self.nport_id)
         _, body = self.client.vif_list(self.node['uuid'])
         self.assertEqual({'vifs': [{'id': self.nport_id}]}, body)
@@ -385,7 +386,8 @@ class TestNodesVif(base.BaseBaremetalTest):
             api_microversion_fixture.APIMicroversionFixture('1.46'))
         _, self.port = self.create_port(self.node['uuid'],
                                         data_utils.rand_mac_address(),
-                                        local_link_connection={'switch_id': data_utils.rand_mac_address()})
+                                        local_link_connection={'switch_id': data_utils.rand_mac_address(),
+                                        'port_id': 'Gig0/1'})
         _, self.portgroup = self.create_portgroup(
             self.node['uuid'], address=data_utils.rand_mac_address())
 
@@ -416,7 +418,8 @@ class TestNodesVif(base.BaseBaremetalTest):
             api_microversion_fixture.APIMicroversionFixture('1.46'))
         _, self.port = self.create_port(self.node['uuid'],
                                         data_utils.rand_mac_address(),
-                                        local_link_connection={'switch_id': data_utils.rand_mac_address()})
+                                        local_link_connection={'switch_id': data_utils.rand_mac_address(),
+                                        'port_id': 'Gig0/1'})
         patch = [{'path': '/extra/vif_port_id',
                   'op': 'add',
                   'value': self.nport_id}]

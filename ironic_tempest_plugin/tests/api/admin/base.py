@@ -263,7 +263,7 @@ class BaseBaremetalTest(api_version_utils.BaseMicroversionTest,
     @classmethod
     @creates('port')
     def create_port(cls, node_id, address, extra=None, uuid=None,
-                    portgroup_uuid=None, physical_network=None):
+                    portgroup_uuid=None, physical_network=None, local_link_connection=None):
         """Wrapper utility for creating test ports.
 
         :param node_id: The unique identifier of the node.
@@ -275,6 +275,8 @@ class BaseBaremetalTest(api_version_utils.BaseMicroversionTest,
             member.
         :param physical_network: The physical network to which the port is
             attached.
+        :param local_link_connection: This information is provided to the Networking service’s ML2 driver,
+            when a Virtual Interface (VIF) is attached. Needed when node network_interface=Neutron.
         :return: A tuple with the server response and the created port.
 
         """
@@ -282,7 +284,8 @@ class BaseBaremetalTest(api_version_utils.BaseMicroversionTest,
         resp, body = cls.client.create_port(address=address, node_id=node_id,
                                             extra=extra, uuid=uuid,
                                             portgroup_uuid=portgroup_uuid,
-                                            physical_network=physical_network)
+                                            physical_network=physical_network,
+                                            local_link_connection=local_link_connection)
 
         return resp, body
 

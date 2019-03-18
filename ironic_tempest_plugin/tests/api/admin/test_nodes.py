@@ -322,7 +322,6 @@ class TestNodesVif(base.BaseBaremetalTest):
 
         _, self.chassis = self.create_chassis()
         _, self.node = self.create_node(self.chassis['uuid'])
-        #self.client.set_node_provision_state(self.node['uuid'], 'active')
 
         if CONF.network.shared_physical_network:
             self.net = self.os_admin.networks_client.list_networks(
@@ -353,7 +352,8 @@ class TestNodesVif(base.BaseBaremetalTest):
         self.useFixture(
             api_microversion_fixture.APIMicroversionFixture('1.46'))
         _, self.port = self.create_port(self.node['uuid'],
-                                        data_utils.rand_mac_address())
+                                        data_utils.rand_mac_address(),
+                                        local_link_connection=data_utils.rand_mac_address())
         self.client.vif_attach(self.node['uuid'], self.nport_id)
         _, body = self.client.vif_list(self.node['uuid'])
         self.assertEqual({'vifs': [{'id': self.nport_id}]}, body)
@@ -384,7 +384,8 @@ class TestNodesVif(base.BaseBaremetalTest):
         self.useFixture(
             api_microversion_fixture.APIMicroversionFixture('1.46'))
         _, self.port = self.create_port(self.node['uuid'],
-                                        data_utils.rand_mac_address())
+                                        data_utils.rand_mac_address(),
+                                        local_link_connection=data_utils.rand_mac_address())
         _, self.portgroup = self.create_portgroup(
             self.node['uuid'], address=data_utils.rand_mac_address())
 
@@ -414,7 +415,8 @@ class TestNodesVif(base.BaseBaremetalTest):
         self.useFixture(
             api_microversion_fixture.APIMicroversionFixture('1.46'))
         _, self.port = self.create_port(self.node['uuid'],
-                                        data_utils.rand_mac_address())
+                                        data_utils.rand_mac_address(),
+                                        local_link_connection=data_utils.rand_mac_address())
         patch = [{'path': '/extra/vif_port_id',
                   'op': 'add',
                   'value': self.nport_id}]

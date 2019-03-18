@@ -313,7 +313,7 @@ class BaremetalClient(base.BaremetalClient):
         if node_id is not None:
             port['node_uuid'] = node_id
 
-        for key in ('address', 'physical_network', 'portgroup_uuid'):
+        for key in ('address', 'physical_network', 'portgroup_uuid', 'local_link_connection'):
             if kwargs.get(key) is not None:
                 port[key] = kwargs[key]
 

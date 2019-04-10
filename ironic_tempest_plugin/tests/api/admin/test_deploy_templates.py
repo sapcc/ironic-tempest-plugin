@@ -66,15 +66,15 @@ class TestDeployTemplates(base.BaseBaremetalTest):
     def test_show_deploy_template(self):
         _, template = self.client.show_deploy_template(self.template['uuid'])
         self._assertExpected(self.template, template)
-        self.assertIn('name', template)
-        self.assertIn('steps', template)
+        self.assertEqual(self.name, template['name'])
+        self.assertEqual(self.steps, template['steps'])
         self.assertIn('uuid', template)
-        self.assertIn('extra', template)
+        self.assertEqual({}, template['extra'])
 
     @decorators.idempotent_id('2fd98e9a-10ce-405a-a32c-0d6079766183')
     def test_show_deploy_template_with_links(self):
         _, template = self.client.show_deploy_template(self.template['uuid'])
-        self.assertIn('links', template.keys())
+        self.assertIn('links', template)
         self.assertEqual(2, len(template['links']))
         self.assertIn(template['uuid'], template['links'][0]['href'])
 
@@ -115,9 +115,9 @@ class TestDeployTemplates(base.BaseBaremetalTest):
             self.assertIn(uuid, templates_dict)
             template = templates_dict[uuid]
             self.assertIn('name', template)
-            self.assertIn('steps', template)
+            self.assertEqual(self.steps, template['steps'])
             self.assertIn('uuid', template)
-            self.assertIn('extra', template)
+            self.assertEqual({}, template['extra'])
             # Verify self link.
             self.validate_self_link('deploy_templates', template['uuid'],
                                     template['links'][0]['href'])
@@ -199,19 +199,11 @@ class TestDeployTemplates(base.BaseBaremetalTest):
 class TestDeployTemplatesOldAPI(base.BaseBaremetalTest):
     """Negative tests for deploy templates using an old API version."""
 
-    max_microversion = '1.54'
-
-    def setUp(self):
-        super(TestDeployTemplatesOldAPI, self).setUp()
-        self.useFixture(
-            api_microversion_fixture.APIMicroversionFixture(
-                self.max_microversion)
-        )
-
     @decorators.attr(type=['negative'])
     @decorators.idempotent_id('e9481a0d-23e0-4757-bc11-c3c9ab9d3839')
     def test_create_deploy_template_old_api(self):
-        self.assertRaises(lib_exc.NotFound,
+        # With deploy templates support, ironic returns 404. Without, 405.
+        self.assertRaises((lib_exc.NotFound, lib_exc.UnexpectedResponseCode),
                           self.create_deploy_template,
                           name=_get_random_trait(), steps=EXAMPLE_STEPS)
 
@@ -221,14 +213,16 @@ class TestDeployTemplatesOldAPI(base.BaseBaremetalTest):
         patch = [{'path': '/name', 'op': 'replace',
                   'value': _get_random_trait()}]
 
-        self.assertRaises(lib_exc.NotFound,
+        # With deploy templates support, ironic returns 404. Without, 405.
+        self.assertRaises((lib_exc.NotFound, lib_exc.UnexpectedResponseCode),
                           self.client.update_deploy_template,
                           _get_random_trait(), patch)
 
     @decorators.attr(type=['negative'])
     @decorators.idempotent_id('1646b1e5-ab81-45a8-9ea0-30444a4dcaa2')
     def test_delete_deploy_template_old_api(self):
-        self.assertRaises(lib_exc.NotFound,
+        # With deploy templates support, ironic returns 404. Without, 405.
+        self.assertRaises((lib_exc.NotFound, lib_exc.UnexpectedResponseCode),
                           self.client.delete_deploy_template,
                           _get_random_trait())
 

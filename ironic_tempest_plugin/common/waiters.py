@@ -12,12 +12,15 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from oslo_log import log
 import six
 from tempest import config
 from tempest.lib.common.utils import test_utils
 from tempest.lib import exceptions as lib_exc
 
 from ironic_tempest_plugin.common import utils
+
+LOG = log.getLogger(__name__)
 
 CONF = config.CONF
 
@@ -28,9 +31,9 @@ def _determine_and_check_timeout_interval(timeout, default_timeout,
         timeout = default_timeout
     if interval is None:
         interval = default_interval
-    if (not isinstance(timeout, six.integer_types) or
-            not isinstance(interval, six.integer_types) or
-            timeout < 0 or interval < 0):
+    if (not isinstance(timeout, six.integer_types)
+            or not isinstance(interval, six.integer_types)
+            or timeout < 0 or interval < 0):
         raise AssertionError(
             'timeout and interval should be >= 0 or None, current values are: '
             '%(timeout)s, %(interval)s respectively. If timeout and/or '
@@ -45,7 +48,7 @@ def _determine_and_check_timeout_interval(timeout, default_timeout,
 
 
 def wait_for_bm_node_status(client, node_id, attr, status, timeout=None,
-                            interval=None):
+                            interval=None, abort_on_error_state=False):
     """Waits for a baremetal node attribute to reach given status.
 
     :param client: an instance of tempest plugin BaremetalClient.
@@ -56,6 +59,8 @@ def wait_for_bm_node_status(client, node_id, attr, status, timeout=None,
         Defaults to client.build_timeout.
     :param interval: an interval between show_node calls for status check.
         Defaults to client.build_interval.
+    :param abort_on_error_state: whether to abort waiting if the node reaches
+        an error state.
 
     The client should have a show_node(node_id) method to get the node.
     """
@@ -69,6 +74,16 @@ def wait_for_bm_node_status(client, node_id, attr, status, timeout=None,
         node = utils.get_node(client, node_id=node_id)
         if node[attr] in status:
             return True
+        elif (abort_on_error_state
+              and node['provision_state'].endswith(' failed')):
+            msg = ('Node %(node)s reached failure state %(state)s while '
+                   'waiting for %(attr)s=%(expected)s. '
+                   'Error: %(error)s' %
+                   {'node': node_id, 'state': node['provision_state'],
+                    'attr': attr, 'expected': status,
+                    'error': node.get('last_error')})
+            LOG.debug(msg)
+            raise lib_exc.TempestException(msg)
         return False
 
     if not test_utils.call_until_true(is_attr_in_status, timeout,
@@ -78,6 +93,7 @@ def wait_for_bm_node_status(client, node_id, attr, status, timeout=None,
         caller = test_utils.find_test_caller()
         if caller:
             message = '(%s) %s' % (caller, message)
+        LOG.debug(message)
         raise lib_exc.TimeoutException(message)
 
 

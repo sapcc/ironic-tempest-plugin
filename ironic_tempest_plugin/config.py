@@ -52,9 +52,8 @@ BaremetalGroup = [
     cfg.StrOpt('catalog_type',
                default='baremetal',
                help="Catalog type of the baremetal provisioning service"),
-    # TODO(dtantsur): change to fake-hardware when Ocata is no longer supported
     cfg.StrOpt('driver',
-               default='fake',
+               default='fake-hardware',
                help="Driver name to use for API tests"),
     cfg.StrOpt('endpoint_type',
                default='publicURL',
@@ -132,6 +131,9 @@ BaremetalGroup = [
     cfg.ListOpt('enabled_boot_interfaces',
                 default=['fake', 'pxe'],
                 help="List of Ironic enabled boot interfaces."),
+    cfg.ListOpt('enabled_raid_interfaces',
+                default=['no-raid', 'agent'],
+                help="List of Ironic enabled RAID interfaces."),
     cfg.StrOpt('default_rescue_interface',
                help="Ironic default rescue interface."),
     cfg.IntOpt('adjusted_root_disk_size_gb',
@@ -140,13 +142,30 @@ BaremetalGroup = [
                     "as instance_info/root_gb value."),
     cfg.IntOpt('available_nodes', min=0, default=None,
                help="The number of baremetal hosts available to use for "
-                    "the tests.")
+                    "the tests."),
+    cfg.BoolOpt('partition_netboot',
+                default=True,
+                help="Treat partition images as netbooted as opposed to "
+                     "attempting to populate a boot loader. IF cirros is "
+                     "being used, this option should be set to True as "
+                     "it lacks the needed components to make it locally "
+                     "from a partition image."),
 ]
 
 BaremetalFeaturesGroup = [
     cfg.BoolOpt('ipxe_enabled',
                 default=True,
                 help="Defines if IPXE is enabled"),
+    cfg.BoolOpt('adoption',
+                # Defaults to False since it's a destructive operation AND it
+                # requires the plugin to be able to read ipmi_password.
+                default=False,
+                help="Defines if adoption is enabled"),
+    cfg.BoolOpt('software_raid',
+                default=False,
+                help="Defines if software RAID is enabled (available "
+                     "starting with Train). Requires at least two disks "
+                     "on testing nodes."),
 ]
 
 BaremetalIntrospectionGroup = [
@@ -165,6 +184,9 @@ BaremetalIntrospectionGroup = [
     cfg.IntOpt('introspection_timeout',
                default=600,
                help="Introspection time out"),
+    cfg.IntOpt('introspection_start_timeout',
+               default=90,
+               help="Timeout to start introspection"),
     cfg.IntOpt('hypervisor_update_sleep',
                default=60,
                help="Time to wait until nova becomes aware of "
@@ -198,4 +220,6 @@ BaremetalIntrospectionGroup = [
     cfg.StrOpt('auto_discovery_target_driver',
                help="The driver to set on the newly discovered nodes. "
                     "Only has effect with auto_discovery_feature is True."),
+    cfg.StrOpt('data_store',
+               help="The storage backend for storing introspection data."),
 ]

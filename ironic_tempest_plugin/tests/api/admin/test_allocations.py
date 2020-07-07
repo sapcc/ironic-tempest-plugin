@@ -21,18 +21,15 @@ from ironic_tempest_plugin.tests.api.admin import base
 CONF = config.CONF
 
 
-class TestAllocations(base.BaseBaremetalTest):
-    """Tests for baremetal allocations."""
-
-    min_microversion = '1.52'
-
-    def provide_node(self, node_id, cleaning_timeout=None):
-        super(TestAllocations, self).provide_node(node_id, cleaning_timeout)
+class Base(base.BaseBaremetalTest):
+    @classmethod
+    def provide_and_power_off_node(cls, node_id, cleaning_timeout=None):
+        cls.provide_node(node_id, cleaning_timeout)
         # Force non-empty power state, otherwise allocation API won't pick it
-        self.client.set_node_power_state(node_id, 'power off')
+        cls.client.set_node_power_state(node_id, 'power off')
 
     def setUp(self):
-        super(TestAllocations, self).setUp()
+        super(Base, self).setUp()
 
         # Generate a resource class to prevent parallel tests from clashing
         # with each other.
@@ -41,12 +38,18 @@ class TestAllocations(base.BaseBaremetalTest):
         _, self.chassis = self.create_chassis()
         _, self.node = self.create_node(self.chassis['uuid'],
                                         resource_class=self.resource_class)
-        self.provide_node(self.node['uuid'])
+        self.provide_and_power_off_node(self.node['uuid'])
+
+
+class TestAllocations(Base):
+    """Tests for baremetal allocations."""
+
+    min_microversion = '1.52'
 
     @decorators.idempotent_id('9203ea28-3c61-4108-8498-22247b654ff6')
     def test_create_show_allocation(self):
         self.assertIsNone(self.node['allocation_uuid'])
-        _, body = self.client.create_allocation(self.resource_class)
+        _, body = self.create_allocation(self.resource_class)
         uuid = body['uuid']
 
         self.assertTrue(uuid)
@@ -72,10 +75,10 @@ class TestAllocations(base.BaseBaremetalTest):
         _, node2 = self.create_node(self.chassis['uuid'],
                                     resource_class=self.resource_class)
         self.client.set_node_traits(node2['uuid'], ['CUSTOM_MEOW'])
-        self.provide_node(node2['uuid'])
+        self.provide_and_power_off_node(node2['uuid'])
 
-        _, body = self.client.create_allocation(self.resource_class,
-                                                traits=['CUSTOM_MEOW'])
+        _, body = self.create_allocation(self.resource_class,
+                                         traits=['CUSTOM_MEOW'])
         uuid = body['uuid']
 
         self.assertTrue(uuid)
@@ -95,10 +98,10 @@ class TestAllocations(base.BaseBaremetalTest):
         _, node2 = self.create_node(self.chassis['uuid'],
                                     resource_class=self.resource_class,
                                     name=node_name)
-        self.provide_node(node2['uuid'])
+        self.provide_and_power_off_node(node2['uuid'])
 
-        _, body = self.client.create_allocation(self.resource_class,
-                                                candidate_nodes=[node_name])
+        _, body = self.create_allocation(self.resource_class,
+                                         candidate_nodes=[node_name])
         uuid = body['uuid']
 
         self.assertTrue(uuid)
@@ -114,24 +117,23 @@ class TestAllocations(base.BaseBaremetalTest):
 
     @decorators.idempotent_id('84eb3c21-4e16-4f33-9551-dce0f8689462')
     def test_delete_allocation(self):
-        _, body = self.client.create_allocation(self.resource_class)
+        _, body = self.create_allocation(self.resource_class)
         self.client.delete_allocation(body['uuid'])
         self.assertRaises(lib_exc.NotFound, self.client.show_allocation,
                           body['uuid'])
 
     @decorators.idempotent_id('5e30452d-ee92-4342-82c1-5eea5e55c937')
     def test_delete_allocation_by_name(self):
-        _, body = self.client.create_allocation(self.resource_class,
-                                                name='banana')
-        self.client.delete_allocation('banana')
-        self.assertRaises(lib_exc.NotFound, self.client.show_allocation,
-                          'banana')
+        name = 'alloc-%s' % uuidutils.generate_uuid()
+        _, body = self.create_allocation(self.resource_class, name=name)
+        self.client.delete_allocation(name)
+        self.assertRaises(lib_exc.NotFound, self.client.show_allocation, name)
 
     @decorators.idempotent_id('fbbc13bc-86da-438b-af01-d1bc1bab57d6')
     def test_show_by_name(self):
-        _, body = self.client.create_allocation(self.resource_class,
-                                                name='banana')
-        _, loaded_body = self.client.show_allocation('banana')
+        name = 'alloc-%s' % uuidutils.generate_uuid()
+        _, body = self.create_allocation(self.resource_class, name=name)
+        _, loaded_body = self.client.show_allocation(name)
         # The allocation will likely have been processed by this time, so do
         # not compare the whole body.
         for field in ('name', 'uuid', 'resource_class'):
@@ -139,7 +141,7 @@ class TestAllocations(base.BaseBaremetalTest):
 
     @decorators.idempotent_id('4ca123c4-160d-4d8d-a3f7-15feda812263')
     def test_list_allocations(self):
-        _, body = self.client.create_allocation(self.resource_class)
+        _, body = self.create_allocation(self.resource_class)
 
         _, listing = self.client.list_allocations()
         self.assertIn(body['uuid'],
@@ -152,8 +154,8 @@ class TestAllocations(base.BaseBaremetalTest):
 
     @decorators.idempotent_id('092b7148-9ff0-4107-be57-2cfcd21eb5d7')
     def test_list_allocations_by_state(self):
-        _, body = self.client.create_allocation(self.resource_class)
-        _, body2 = self.client.create_allocation(self.resource_class + 'foo2')
+        _, body = self.create_allocation(self.resource_class)
+        _, body2 = self.create_allocation(self.resource_class + 'foo2')
 
         waiters.wait_for_allocation(self.client, body['uuid'])
         waiters.wait_for_allocation(self.client, body2['uuid'],
@@ -177,7 +179,7 @@ class TestAllocations(base.BaseBaremetalTest):
     @decorators.attr(type=['negative'])
     @decorators.idempotent_id('bf7e1375-019a-466a-a294-9c1052827ada')
     def test_create_allocation_resource_class_mismatch(self):
-        _, body = self.client.create_allocation(self.resource_class + 'foo')
+        _, body = self.create_allocation(self.resource_class + 'foo')
 
         _, body = waiters.wait_for_allocation(self.client, body['uuid'],
                                               expect_error=True)
@@ -187,7 +189,7 @@ class TestAllocations(base.BaseBaremetalTest):
     @decorators.attr(type=['negative'])
     @decorators.idempotent_id('b4eeddee-ca34-44f9-908b-490b78b18486')
     def test_create_allocation_traits_mismatch(self):
-        _, body = self.client.create_allocation(
+        _, body = self.create_allocation(
             self.resource_class, traits=['CUSTOM_DOES_NOT_EXIST'])
 
         _, body = waiters.wait_for_allocation(self.client, body['uuid'],
@@ -201,10 +203,56 @@ class TestAllocations(base.BaseBaremetalTest):
         _, node2 = self.create_node(self.chassis['uuid'],
                                     resource_class=self.resource_class + 'alt')
         # Mismatch between the resource class and the candidate node
-        _, body = self.client.create_allocation(
+        _, body = self.create_allocation(
             self.resource_class, candidate_nodes=[node2['uuid']])
 
         _, body = waiters.wait_for_allocation(self.client, body['uuid'],
                                               expect_error=True)
         self.assertEqual('error', body['state'])
         self.assertTrue(body['last_error'])
+
+
+class TestBackfill(Base):
+    """Tests for backfilling baremetal allocations."""
+
+    min_microversion = '1.58'
+
+    @decorators.idempotent_id('10774c1d-6b79-453a-8e26-9bf04ab580a4')
+    def test_backfill_allocation(self):
+        self.deploy_node(self.node['uuid'])
+
+        _, body = self.client.create_allocation(self.resource_class,
+                                                node=self.node['uuid'])
+        uuid = body['uuid']
+        self.assertEqual(self.node['uuid'], body['node_uuid'])
+        self.assertEqual('active', body['state'])
+        self.assertIsNone(body['last_error'])
+
+        _, body2 = self.client.show_node_allocation(body['node_uuid'])
+        self.assertEqual(self.node['uuid'], body2['node_uuid'])
+        self.assertEqual('active', body2['state'])
+        self.assertIsNone(body2['last_error'])
+
+        _, node = self.client.show_node(self.node['uuid'])
+        self.assertEqual(uuid, node['allocation_uuid'])
+
+    @decorators.idempotent_id('c33d4b65-1232-4a3f-9aad-942e32f6f7b0')
+    def test_backfill_without_resource_class(self):
+        self.deploy_node(self.node['uuid'])
+
+        _, body = self.client.create_allocation(None, node=self.node['uuid'])
+        uuid = body['uuid']
+        self.assertEqual(self.node['uuid'], body['node_uuid'])
+        self.assertEqual('active', body['state'])
+        self.assertIsNone(body['last_error'])
+        # Resource class is copied from node
+        self.assertEqual(self.node['resource_class'], body['resource_class'])
+
+        _, body2 = self.client.show_node_allocation(body['node_uuid'])
+        self.assertEqual(self.node['uuid'], body2['node_uuid'])
+        self.assertEqual('active', body2['state'])
+        self.assertIsNone(body2['last_error'])
+        self.assertEqual(self.node['resource_class'], body2['resource_class'])
+
+        _, node = self.client.show_node(self.node['uuid'])
+        self.assertEqual(uuid, node['allocation_uuid'])

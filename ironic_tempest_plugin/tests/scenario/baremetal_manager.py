@@ -34,14 +34,13 @@ def retry_on_conflict(func):
     def inner(*args, **kwargs):
         # TODO(vsaienko): make number of retries and delay between
         # them configurable in future.
-        e = None
         for att in range(10):
             try:
                 return func(*args, **kwargs)
-            except lib_exc.Conflict as e:
+            except lib_exc.Conflict:
+                if att == 9:
+                    raise
                 time.sleep(1)
-        raise lib_exc.Conflict(e)
-
     return inner
 
 
@@ -104,10 +103,12 @@ class BaremetalScenarioTest(manager.ScenarioTest):
         cls.baremetal_client.list_nodes()
 
     @classmethod
-    def wait_provisioning_state(cls, node_id, state, timeout=10, interval=1):
+    def wait_provisioning_state(cls, node_id, state, timeout=10, interval=1,
+                                abort_on_error_state=True):
         ironic_waiters.wait_for_bm_node_status(
             cls.baremetal_client, node_id=node_id, attr='provision_state',
-            status=state, timeout=timeout, interval=interval)
+            status=state, timeout=timeout, interval=interval,
+            abort_on_error_state=abort_on_error_state)
 
     @classmethod
     def wait_power_state(cls, node_id, state):

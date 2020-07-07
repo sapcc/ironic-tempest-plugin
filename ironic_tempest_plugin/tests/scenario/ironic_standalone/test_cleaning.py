@@ -65,7 +65,108 @@ class BaremetalCleaningIpmiWholedisk(
     deploy_interface = 'iscsi'
     api_microversion = '1.31'
 
+    @classmethod
+    def skip_checks(cls):
+        super(BaremetalCleaningIpmiWholedisk, cls).skip_checks()
+        if CONF.baremetal_feature_enabled.software_raid:
+            raise cls.skipException("Cleaning is covered in the RAID test")
+
     @decorators.idempotent_id('065238db-1b6d-4d75-a9da-c240f8cbd956')
     @utils.services('image', 'network')
     def test_manual_cleaning(self):
         self.check_manual_partition_cleaning(self.node)
+
+
+class SoftwareRaidIscsi(bsm.BaremetalStandaloneScenarioTest):
+
+    if 'redfish' in CONF.baremetal.enabled_hardware_types:
+        driver = 'redfish'
+    else:
+        driver = 'ipmi'
+    image_ref = CONF.baremetal.whole_disk_image_ref
+    wholedisk_image = True
+    deploy_interface = 'iscsi'
+    raid_interface = 'agent'
+    api_microversion = '1.31'
+    # Software RAID is always local boot
+    boot_option = 'local'
+
+    raid_config = {
+        "logical_disks": [
+            {
+                "size_gb": "MAX",
+                "raid_level": "1",
+                "controller": "software"
+            },
+        ]
+    }
+
+    @classmethod
+    def skip_checks(cls):
+        super(SoftwareRaidIscsi, cls).skip_checks()
+        if cls.driver == 'ipmi':
+            raise cls.skipException("Testing with redfish driver")
+        if not CONF.baremetal_feature_enabled.software_raid:
+            raise cls.skipException("Software RAID feature is not enabled")
+
+    @decorators.idempotent_id('7ecba4f7-98b8-4ea1-b95e-3ec399f46798')
+    @utils.services('image', 'network')
+    def test_software_raid(self):
+        self.build_raid_and_verify_node()
+        # NOTE(TheJulia): tearing down/terminating the instance does not
+        # remove the root device hint, so it is best for us to go ahead
+        # and remove it before exiting the test.
+        self.remove_root_device_hint()
+        # Removes RAID configuration
+        # TODO(TheJulia): We _should_ tear the raid configuration down
+        # however bouncing neutron ports with known DHCP reload bugs
+        # is not a super great idea for tempest tests.
+        self.remove_raid_configuration()
+
+
+class SoftwareRaidDirect(bsm.BaremetalStandaloneScenarioTest):
+
+    if 'redfish' in CONF.baremetal.enabled_hardware_types:
+        driver = 'redfish'
+    else:
+        driver = 'ipmi'
+    image_ref = CONF.baremetal.whole_disk_image_ref
+    wholedisk_image = True
+    deploy_interface = 'direct'
+    raid_interface = 'agent'
+    api_microversion = '1.31'
+    # Software RAID is always local boot
+    boot_option = 'local'
+
+    # TODO(dtantsur): more complex layout in this job
+    raid_config = {
+        "logical_disks": [
+            {
+                "size_gb": "MAX",
+                "raid_level": "1",
+                "controller": "software"
+            },
+        ]
+    }
+
+    @classmethod
+    def skip_checks(cls):
+        super(SoftwareRaidDirect, cls).skip_checks()
+        if cls.driver == 'redfish':
+            raise cls.skipException("Testing with ipmi driver")
+        if not CONF.baremetal_feature_enabled.software_raid:
+            raise cls.skipException("Software RAID feature is not enabled")
+
+    @decorators.idempotent_id('125361ac-0eb3-4d79-8be2-a91936aa3f46')
+    @utils.services('image', 'network')
+    def test_software_raid(self):
+        self.build_raid_and_verify_node()
+        # NOTE(TheJulia): tearing down/terminating the instance does not
+        # remove the root device hint, so it is best for us to go ahead
+        # and remove it before exiting the test.
+        self.remove_root_device_hint()
+        # Removes RAID configuration
+        # TODO(TheJulia): We _should_ tear the raid configuration down
+        # however bouncing neutron ports with known DHCP reload bugs
+        # is not a super great idea for tempest tests.
+        self.remove_raid_configuration()

@@ -14,7 +14,6 @@ import os
 import time
 
 from oslo_serialization import jsonutils as json
-
 import six
 import tempest
 from tempest import config
@@ -24,8 +23,7 @@ from tempest.lib import exceptions as lib_exc
 
 import ironic_tempest_plugin
 from ironic_tempest_plugin import exceptions
-from ironic_tempest_plugin.services import \
-    introspection_client
+from ironic_tempest_plugin.services import introspection_client
 from ironic_tempest_plugin.tests.api.admin.api_microversion_fixture import \
     APIMicroversionFixture as IronicMicroversionFixture
 from ironic_tempest_plugin.tests.scenario.baremetal_manager import \
@@ -64,10 +62,10 @@ class InspectorScenarioTest(BaremetalScenarioTest):
         # microversion
         self.useFixture(IronicMicroversionFixture(self.ironic_api_version))
         self.flavor = self.baremetal_flavor()
-        self.node_ids = {node['uuid'] for node in
-                         self.node_filter(filter=lambda node:
-                                          node['provision_state'] ==
-                                          BaremetalProvisionStates.AVAILABLE)}
+        self.node_ids = {
+            node['uuid'] for node in self.node_filter(
+                filter=lambda node:
+                node['provision_state'] == BaremetalProvisionStates.AVAILABLE)}
         self.rule_purge()
 
     def item_filter(self, list_method, show_method,
@@ -177,11 +175,24 @@ class InspectorScenarioTest(BaremetalScenarioTest):
             node_ids = [node_ids]
         start = int(time.time())
         not_introspected = {node_id for node_id in node_ids}
+        introspection_start_timeout = (
+            CONF.baremetal_introspection.introspection_start_timeout)
 
         while not_introspected:
             time.sleep(CONF.baremetal_introspection.introspection_sleep)
             for node_id in node_ids:
-                status = self.introspection_status(node_id)
+                try:
+                    status = self.introspection_status(node_id)
+                except lib_exc.NotFound as exc:
+                    if int(time.time()) - start >= introspection_start_timeout:
+                        message = ('Node %(node_id)s did not appear in the '
+                                   'baremetal introspection API after '
+                                   '%(timeout)d seconds: %(error)s' %
+                                   {'node_id': node_id, 'error': exc,
+                                    'timeout': introspection_start_timeout})
+                        raise exceptions.IntrospectionFailed(message)
+                    else:
+                        continue
                 if status['finished']:
                     if status['error']:
                         message = ('Node %(node_id)s introspection failed '
@@ -191,8 +202,8 @@ class InspectorScenarioTest(BaremetalScenarioTest):
                         raise exceptions.IntrospectionFailed(message)
                     not_introspected = not_introspected - {node_id}
 
-            if (int(time.time()) - start >=
-                    CONF.baremetal_introspection.introspection_timeout):
+            if (int(time.time()) - start
+                    >= CONF.baremetal_introspection.introspection_timeout):
                 message = ('Introspection timed out for nodes: %s' %
                            not_introspected)
                 raise exceptions.IntrospectionTimeout(message)
@@ -215,8 +226,8 @@ class InspectorScenarioTest(BaremetalScenarioTest):
                 raise exceptions.HypervisorUpdateTimeout(message)
 
     def node_cleanup(self, node_id):
-        if (self.node_show(node_id)['provision_state'] ==
-           BaremetalProvisionStates.AVAILABLE):
+        if (self.node_show(node_id)['provision_state']
+                == BaremetalProvisionStates.AVAILABLE):
             return
         # in case when introspection failed we need set provision state
         # to 'manage' to make it possible transit into 'provide' state

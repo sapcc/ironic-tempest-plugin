@@ -21,7 +21,7 @@ from ironic_tempest_plugin.tests.api.admin import base
 class TestPortGroups(base.BaseBaremetalTest):
     """Basic positive test cases for port groups."""
 
-    min_microversion = '1.23'
+    min_microversion = '1.46'
 
     def setUp(self):
         super(TestPortGroups, self).setUp()

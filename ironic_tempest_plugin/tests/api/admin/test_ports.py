@@ -265,7 +265,7 @@ class TestPorts(base.BaseBaremetalTest):
 class TestPortsWithPhysicalNetwork(base.BaseBaremetalTest):
     """Tests for ports with physical network information."""
 
-    min_microversion = '1.34'
+    min_microversion = '1.46'
 
     def setUp(self):
         super(TestPortsWithPhysicalNetwork, self).setUp()

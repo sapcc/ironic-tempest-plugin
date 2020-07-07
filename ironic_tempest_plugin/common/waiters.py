@@ -88,12 +88,8 @@ def wait_for_bm_node_status(client, node_id, attr, status, timeout=None,
 
     if not test_utils.call_until_true(is_attr_in_status, timeout,
                                       interval):
-        message = ('Node %(node_id)s failed to reach %(attr)s=%(status)s '
-                   'within the required time (%(timeout)s s).' %
-                   {'node_id': node_id,
-                    'attr': attr,
-                    'status': status,
-                    'timeout': timeout})
+        message = ('Node %s failed to reach %s=%s '
+                   'within the required time (%s s).' %  (node_id, attr, status, timeout))
         caller = test_utils.find_test_caller()
         if caller:
             message = '(%s) %s' % (caller, message)
@@ -123,8 +119,7 @@ def wait_node_instance_association(client, instance_uuid, timeout=None,
     if not test_utils.call_until_true(is_some_node_associated, timeout,
                                       interval):
         msg = ('Timed out waiting to get Ironic node by instance UUID '
-               '%(instance_uuid)s within the required time (%(timeout)s s).'
-               % {'instance_uuid': instance_uuid, 'timeout': timeout})
+               '%s within the required time (%s s).' % (instance_uuid, timeout))
         raise lib_exc.TimeoutException(msg)
 
 

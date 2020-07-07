@@ -27,7 +27,7 @@ CONF = config.CONF
 
 
 class BaremetalBasicOps(baremetal_manager.BaremetalScenarioTest):
-    """This smoke test tests the pxe_ssh Ironic driver.
+    """This smoke test tests an Ironic driver.
 
     It follows this basic set of operations:
         * Creates a keypair
@@ -101,13 +101,13 @@ class BaremetalBasicOps(baremetal_manager.BaremetalScenarioTest):
         LOG.info("Looking for partition %s mounted on %s", label, mount)
 
         # Validate we have a device with the given partition label
-        cmd = "/sbin/blkid | grep '%s' | cut -d':' -f1" % label
+        cmd = "/sbin/blkid -c /dev/null -l -o device -t LABEL=%s" % label
         device = client.exec_command(cmd).rstrip('\n')
         LOG.debug("Partition device is %s", device)
         self.assertNotEqual('', device)
 
         # Validate the mount point for the device
-        cmd = "mount | grep '%s' | cut -d' ' -f3" % device
+        cmd = "mount | grep -w '%s' | cut -d' ' -f3" % device
         actual_mount = client.exec_command(cmd).rstrip('\n')
         LOG.debug("Partition mount point is %s", actual_mount)
         self.assertEqual(actual_mount, mount)
@@ -133,16 +133,7 @@ class BaremetalBasicOps(baremetal_manager.BaremetalScenarioTest):
 
     def validate_ports(self):
         node_uuid = self.node['uuid']
-        vifs = []
-        # TODO(vsaienko) switch to get_node_vifs() when all stable releases
-        # supports Ironic API 1.28
-        if self._is_version_supported('1.28'):
-            vifs = self.get_node_vifs(node_uuid)
-        else:
-            for port in self.get_ports(self.node['uuid']):
-                vif = port['extra'].get('vif_port_id')
-                if vif:
-                    vifs.append({'id': vif})
+        vifs = self.get_node_vifs(node_uuid)
 
         ir_ports = self.get_ports(node_uuid)
         ir_ports_addresses = [x['address'] for x in ir_ports]
@@ -160,21 +151,8 @@ class BaremetalBasicOps(baremetal_manager.BaremetalScenarioTest):
         those set on the node. Does not assume that resource classes and traits
         are in use.
         """
-        # Try to get a node with resource class (1.21) and traits (1.37).
-        # TODO(mgoddard): Remove this when all stable releases support these
-        # API versions.
-        for version in ('1.37', '1.21'):
-            if self._is_version_supported(version):
-                node = self.get_node(instance_id=self.instance['id'],
-                                     api_version=version)
-                break
-        else:
-            # Neither API is supported - cannot test.
-            LOG.warning("Cannot validate resource class and trait based "
-                        "scheduling as these require API version 1.21 and "
-                        "1.37 respectively")
-            return
-
+        node = self.get_node(instance_id=self.instance['id'],
+                             api_version='1.37')
         f_id = self.instance['flavor']['id']
         extra_specs = self.flavors_client.list_flavor_extra_specs(f_id)
         extra_specs = extra_specs['extra_specs']

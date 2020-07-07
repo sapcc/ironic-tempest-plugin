@@ -7,48 +7,55 @@
       jobs:
         # NOTE(dtantsur): keep N-3 and older non-voting for these jobs.
         - ironic-standalone
-        - ironic-dsvm-standalone-rocky
-        # NOTE(iurygregory): we want to make voting again
-        - ironic-dsvm-standalone-queens:
-            voting: false
-        - ironic-dsvm-standalone-pike:
+        - ironic-standalone-ussuri
+        - ironic-standalone-train
+        - ironic-standalone-stein:
             voting: false
         - ironic-tempest-functional-python3
-        - ironic-tempest-dsvm-functional-python3-rocky
+        - ironic-tempest-functional-python3-ussuri
+        - ironic-tempest-functional-python3-train
+        - ironic-tempest-functional-python3-stein:
+            voting: false
         - ironic-inspector-tempest
-        - ironic-tempest-dsvm-ironic-inspector-rocky
-        - ironic-tempest-dsvm-ironic-inspector-queens
-        - ironic-tempest-dsvm-ironic-inspector-pike:
+        - ironic-inspector-tempest-ussuri
+        - ironic-inspector-tempest-train
+        - ironic-inspector-tempest-stein:
             voting: false
         # NOTE(dtantsur): these jobs cover rarely changed tests and are quite
-        # unstable, so keep them non-voting on stable branches.
-        # NOTE(iurygregory):  debug rocky and queens
-        # since before was working, pike was broken before
-        - ironic-tempest-ipa-wholedisk-direct-tinyipa-multinode
-        - ironic-tempest-dsvm-ipa-wholedisk-agent_ipmitool-tinyipa-multinode-rocky:
+        # unstable, so keep them non-voting.
+        - ironic-standalone-redfish:
             voting: false
-        - ironic-tempest-dsvm-ipa-wholedisk-agent_ipmitool-tinyipa-multinode-queens:
+        - ironic-standalone-redfish-ussuri:
             voting: false
-        - ironic-tempest-dsvm-ipa-wholedisk-agent_ipmitool-tinyipa-multinode-pike:
+        - ironic-standalone-redfish-train:
+            voting: false
+        - ironic-standalone-redfish-stein:
+            voting: false
+        - ironic-tempest-ipa-wholedisk-direct-tinyipa-multinode:
+            voting: false
+        - ironic-tempest-ipa-wholedisk-direct-tinyipa-multinode-ussuri:
+            voting: false
+        - ironic-tempest-ipa-wholedisk-direct-tinyipa-multinode-train:
+            voting: false
+        - ironic-tempest-ipa-wholedisk-direct-tinyipa-multinode-stein:
             voting: false
         - ironic-inspector-tempest-discovery
-        - ironic-inspector-tempest-dsvm-discovery-rocky:
+        - ironic-inspector-tempest-discovery-ussuri:
             voting: false
-        - ironic-inspector-tempest-dsvm-discovery-queens:
+        - ironic-inspector-tempest-discovery-train:
             voting: false
-        # NOTE(iurygregory): we may want to debug why its failling since before was green
-        - ironic-inspector-tempest-dsvm-discovery-pike:
+        - ironic-inspector-tempest-discovery-stein:
             voting: false
     gate:
       queue: ironic
       jobs:
-        # NOTE(iurygregory): re add ironic-dsvm-standalone-queens when is green again
         - ironic-standalone
-        - ironic-dsvm-standalone-rocky
+        - ironic-standalone-ussuri
+        - ironic-standalone-train
         - ironic-tempest-functional-python3
-        - ironic-tempest-dsvm-functional-python3-rocky
+        - ironic-tempest-functional-python3-ussuri
+        - ironic-tempest-functional-python3-train
         - ironic-inspector-tempest
-        - ironic-tempest-dsvm-ironic-inspector-rocky
-        - ironic-tempest-dsvm-ironic-inspector-queens
-        - ironic-tempest-ipa-wholedisk-direct-tinyipa-multinode
+        - ironic-inspector-tempest-ussuri
+        - ironic-inspector-tempest-train
         - ironic-inspector-tempest-discovery

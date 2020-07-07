@@ -17,6 +17,7 @@ import random
 
 from oslo_utils import uuidutils
 from tempest import config
+from tempest.lib.common.utils.linux import remote_client
 from tempest.lib.common.utils import test_utils
 from tempest.lib import exceptions as lib_exc
 from tempest.scenario import manager
@@ -37,6 +38,7 @@ class BaremetalStandaloneManager(bm.BaremetalScenarioTest,
 
     image_ref = None
     image_checksum = None
+    boot_option = None
 
     @classmethod
     def skip_checks(cls):
@@ -101,7 +103,7 @@ class BaremetalStandaloneManager(bm.BaremetalScenarioTest,
 
         For a full list of available parameters, please refer to the official
         API reference:
-        http://developer.openstack.org/api-ref/networking/v2/index.html#create-port
+        https://docs.openstack.org/api-ref/network/v2/index.html#create-port
 
         :returns: server response body.
         """
@@ -205,6 +207,8 @@ class BaremetalStandaloneManager(bm.BaremetalScenarioTest,
 
         def _try_to_associate_instance():
             n = node or cls.get_random_available_node()
+            if n is None:
+                return False
             try:
                 cls._associate_instance_with_node(n['uuid'], instance_uuid)
                 nodes.append(n)
@@ -221,7 +225,8 @@ class BaremetalStandaloneManager(bm.BaremetalScenarioTest,
         return nodes[0]
 
     @classmethod
-    def boot_node(cls, image_ref=None, image_checksum=None):
+    def boot_node(cls, image_ref=None, image_checksum=None,
+                  boot_option=None):
         """Boot ironic node.
 
         The following actions are executed:
@@ -234,11 +239,16 @@ class BaremetalStandaloneManager(bm.BaremetalScenarioTest,
         :param image_ref: Reference to user image to boot node with.
         :param image_checksum: md5sum of image specified in image_ref.
                                Needed only when direct HTTP link is provided.
+        :param boot_option: The defaut boot option to utilize. If not
+                            specified, the ironic deployment default shall
+                            be utilized.
         """
         if image_ref is None:
             image_ref = cls.image_ref
         if image_checksum is None:
             image_checksum = cls.image_checksum
+        if boot_option is None:
+            boot_option = cls.boot_option
 
         network, subnet, router = cls.create_networks()
         n_port = cls.create_neutron_port(network_id=network['id'])
@@ -253,6 +263,11 @@ class BaremetalStandaloneManager(bm.BaremetalScenarioTest,
         patch.append({'path': '/instance_info/root_gb',
                       'op': 'add',
                       'value': CONF.baremetal.adjusted_root_disk_size_gb})
+
+        if boot_option:
+            patch.append({'path': '/instance_info/capabilities',
+                          'op': 'add',
+                          'value': {'boot_option': boot_option}})
         # TODO(vsaienko) add testing for custom configdrive
         cls.update_node(cls.node['uuid'], patch=patch)
         cls.set_node_provision_state(cls.node['uuid'], 'active')
@@ -424,6 +439,12 @@ class BaremetalStandaloneScenarioTest(BaremetalStandaloneManager):
     # set via a different test).
     boot_interface = None
 
+    # The raid interface to use by the HW type. The raid interface of the
+    # node used in the test will be set to this value. If set to None, the
+    # node will retain its existing raid_interface value (which may have been
+    # set via a different test).
+    raid_interface = None
+
     # Boolean value specify if image is wholedisk or not.
     wholedisk_image = None
 
@@ -438,8 +459,8 @@ class BaremetalStandaloneScenarioTest(BaremetalStandaloneManager):
     @classmethod
     def skip_checks(cls):
         super(BaremetalStandaloneScenarioTest, cls).skip_checks()
-        if (cls.driver not in CONF.baremetal.enabled_drivers +
-                CONF.baremetal.enabled_hardware_types):
+        if (cls.driver not in CONF.baremetal.enabled_drivers
+                + CONF.baremetal.enabled_hardware_types):
             raise cls.skipException(
                 'The driver: %(driver)s used in test is not in the list of '
                 'enabled_drivers %(enabled_drivers)s or '
@@ -476,6 +497,13 @@ class BaremetalStandaloneScenarioTest(BaremetalStandaloneManager):
                 "in the list of enabled boot interfaces %(enabled)s" % {
                     'iface': cls.boot_interface,
                     'enabled': CONF.baremetal.enabled_boot_interfaces})
+        if (cls.raid_interface and cls.raid_interface not in
+                CONF.baremetal.enabled_raid_interfaces):
+            raise cls.skipException(
+                "RAID interface %(iface)s required by test is not "
+                "in the list of enabled RAID interfaces %(enabled)s" % {
+                    'iface': cls.raid_interface,
+                    'enabled': CONF.baremetal.enabled_raid_interfaces})
         if not cls.wholedisk_image and CONF.baremetal.use_provision_network:
             raise cls.skipException(
                 'Partitioned images are not supported with multitenancy.')
@@ -512,6 +540,8 @@ class BaremetalStandaloneScenarioTest(BaremetalStandaloneManager):
             boot_kwargs['rescue_interface'] = cls.rescue_interface
         if cls.boot_interface:
             boot_kwargs['boot_interface'] = cls.boot_interface
+        if cls.raid_interface:
+            boot_kwargs['raid_interface'] = cls.raid_interface
 
         # just get an available node
         cls.node = cls.get_and_reserve_node()
@@ -540,3 +570,60 @@ class BaremetalStandaloneScenarioTest(BaremetalStandaloneManager):
         self.set_node_to_active(image_ref, image_checksum)
         self.assertTrue(self.ping_ip_address(self.node_ip,
                                              should_succeed=should_succeed))
+
+    def build_raid_and_verify_node(self, config=None, clean_steps=None):
+        config = config or self.raid_config
+        clean_steps = clean_steps or [
+            {
+                "interface": "raid",
+                "step": "delete_configuration"
+            },
+            # NOTE(dtantsur): software RAID building fails if any
+            # partitions exist on holder devices.
+            {
+                "interface": "deploy",
+                "step": "erase_devices_metadata"
+            },
+            {
+                "interface": "raid",
+                "step": "create_configuration"
+            }
+        ]
+
+        self.baremetal_client.set_node_raid_config(self.node['uuid'], config)
+        self.manual_cleaning(self.node, clean_steps=clean_steps)
+
+        # NOTE(dtantsur): this is not required, but it allows us to check that
+        # the RAID device was in fact created and is used for deployment.
+        patch = [{'path': '/properties/root_device',
+                  'op': 'add', 'value': {'name': '/dev/md0'}}]
+        self.update_node(self.node['uuid'], patch=patch)
+        # NOTE(dtantsur): apparently cirros cannot boot from md devices :(
+        # So we only move the node to active (verifying deployment).
+        self.set_node_to_active()
+
+    def remove_root_device_hint(self):
+        patch = [{'path': '/properties/root_device',
+                  'op': 'remove'}]
+        self.update_node(self.node['uuid'], patch=patch)
+
+    def remove_raid_configuration(self):
+        self.baremetal_client.set_node_raid_config(self.node['uuid'], {})
+
+    def rescue_unrescue(self):
+        rescue_password = uuidutils.generate_uuid()
+        self.rescue_node(self.node['uuid'], rescue_password)
+        self.assertTrue(self.ping_ip_address(self.node_ip,
+                                             should_succeed=True))
+
+        # Open ssh connection to server
+        linux_client = remote_client.RemoteClient(
+            self.node_ip,
+            'rescue',
+            password=rescue_password,
+            ssh_timeout=CONF.baremetal.rescue_timeout)
+        linux_client.validate_authentication()
+
+        self.unrescue_node(self.node['uuid'])
+        self.assertTrue(self.ping_ip_address(self.node_ip,
+                                             should_succeed=True))
